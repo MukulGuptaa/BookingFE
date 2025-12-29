@@ -4,6 +4,7 @@ public class MainSceneManager : MonoBehaviour
 {
     [SerializeField] private GameObject loginRegisterScreen;
     [SerializeField] private GameObject lobbyScreen;
+    [SerializeField] private GameObject bookingScreen;
     
     public static MainSceneManager Instance { get; private set; }
     
@@ -12,17 +13,19 @@ public class MainSceneManager : MonoBehaviour
         Instance = this;
         if (UserData.Instance.IsLoggedIn) {
             loginRegisterScreen.SetActive(false); 
-            lobbyScreen.SetActive(true);
+            bookingScreen.SetActive(true);
         } else {
             loginRegisterScreen.SetActive(true);
-            lobbyScreen.SetActive(false);
+            bookingScreen.SetActive(false);
         }
     }
 
     public void OnAuthSuccess()
     {
         loginRegisterScreen.SetActive(false); 
-        lobbyScreen.SetActive(true);
+        bookingScreen.SetActive(true);
     }
+    
+    
     
 }
