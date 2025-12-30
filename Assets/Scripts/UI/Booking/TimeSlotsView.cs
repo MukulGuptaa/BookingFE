@@ -11,10 +11,15 @@ namespace Booking.UI
 
         [SerializeField] private Transform slotsContainer;
         [SerializeField] private TimeSlotItem timeSlotItemPrefab;
-        [SerializeField] private GameObject noSlotsMessage; // Optional "No slots available" text
+        [SerializeField] private GameObject noSlotsMessage; 
+
+        private TimeSlotItem _selectedItem;
 
         public void DisplaySlots(List<SlotData> slots)
         {
+            // Reset selection when displaying new slots
+            _selectedItem = null;
+
             foreach (Transform child in slotsContainer)
                 Destroy(child.gameObject);
 
@@ -33,9 +38,17 @@ namespace Booking.UI
             }
         }
 
-        private void OnSlotClicked(string time)
+        private void OnSlotClicked(TimeSlotItem item)
         {
-            OnSlotSelected?.Invoke(time);
+            if (_selectedItem != null)
+            {
+                _selectedItem.SetSelected(false);
+            }
+
+            _selectedItem = item;
+            _selectedItem.SetSelected(true);
+
+            OnSlotSelected?.Invoke(item.Time);
         }
     }
 }
