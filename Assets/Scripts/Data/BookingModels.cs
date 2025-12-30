@@ -19,7 +19,7 @@ namespace Booking.Data
         public string time;     // "HH:mm"
         public string userId;
         public int duration;    // minutes
-        public int amount;      // optional
+        // public int amount;      // optional
     }
 
     [Serializable]
@@ -36,5 +36,12 @@ namespace Booking.Data
         public string date;
         public string time;
         public string status;
+    }
+    
+    [Serializable]
+    public class BookingStatusResponse
+    {
+        public string status;        // CONFIRMED, PENDING, CANCELLED
+        public string paymentStatus; // SUCCESS, FAILED, PENDING
     }
 }

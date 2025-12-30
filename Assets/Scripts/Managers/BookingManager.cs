@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 using Booking.Data;
+using System.Threading.Tasks;
+using UnityEngine;
 
 public class BookingManager
 {
+    // Events for Observer Pattern
+    public event Action<string> OnBookingConfirmed;
+    public event Action<string> OnBookingFailed; // contains error or failure reason
+
     private static BookingManager _instance;
     public static BookingManager Instance
     {
@@ -27,7 +32,6 @@ public class BookingManager
         string dateStr = date.ToString("yyyy-MM-dd");
         string userId = UserData.Instance.UserId;
         
-        // Ensure userId is present if logged in, otherwise it might be null/empty string
         string queryParams = $"?date={dateStr}";
         if (!string.IsNullOrEmpty(userId))
         {
@@ -51,9 +55,69 @@ public class BookingManager
             time = time,
             userId = UserData.Instance.UserId,
             duration = duration,
-            amount = 100 // Default or dynamic amount
+            // amount = 100 // Default or dynamic amount
         };
 
         APIManager.Instance.PostRequest<BookingResponse>("/bookings", request, onSuccess, onError);
+    }
+    
+    /// <summary>
+    /// Checks the status of a specific booking.
+    /// Calls API: GET /api/payments/check-status/{bookingId}
+    /// </summary>
+    public void CheckBookingStatus(string bookingId, Action<BookingStatusResponse> onSuccess, Action<string> onError)
+    {
+        string endpoint = $"/payments/check-status/{bookingId}";
+        APIManager.Instance?.GetRequest<BookingStatusResponse>(endpoint, onSuccess, onError);
+    }
+
+    /// <summary>
+    /// Starts polling the booking status.
+    /// Fires OnBookingConfirmed or OnBookingFailed events.
+    /// </summary>
+    public async void StartPolling(string bookingId, float intervalSeconds = 3f, float timeoutSeconds = 300f)
+    {
+        float timer = 0f;
+        bool stopPolling = false;
+
+        while (!stopPolling && timer < timeoutSeconds)
+        {
+            await Task.Delay((int)(intervalSeconds * 1000));
+            timer += intervalSeconds;
+
+            bool requestComplete = false;
+            
+            CheckBookingStatus(bookingId,
+                onSuccess: (response) => {
+                    if (response.status == "CONFIRMED")
+                    {
+                        OnBookingConfirmed?.Invoke(bookingId);
+                        stopPolling = true;
+                    }
+                    else if (response.status == "CANCELLED" || response.status == "FAILED")
+                    {
+                        OnBookingFailed?.Invoke("Booking Failed or Cancelled");
+                        stopPolling = true;
+                    }
+                    requestComplete = true;
+                },
+                onError: (error) => {
+                    Debug.LogWarning($"Polling Error: {error}");
+                    // Optionally stop on error or continue retrying
+                    requestComplete = true;
+                }
+            );
+
+            // Wait for callback to complete
+            while (!requestComplete)
+            {
+                await Task.Delay(100);
+            }
+        }
+
+        if (!stopPolling && timer >= timeoutSeconds)
+        {
+            OnBookingFailed?.Invoke("Polling Timed Out");
+        }
     }
 }

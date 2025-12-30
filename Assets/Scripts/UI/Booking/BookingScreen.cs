@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -14,27 +15,56 @@ namespace Booking.UI
         [Header("UI Elements")]
         [SerializeField] private GameObject loadingIndicator;
         [SerializeField] private Button backButton;
-        [SerializeField] private Button confirmButton; // New Confirm Button
+        [SerializeField] private Button confirmButton; 
 
         private DateTime _selectedDate;
         private string _selectedTime;
 
         private void Start()
         {
-            // Initial State
             backButton.onClick.AddListener(OnBackButtonClicked);
-            
-            // Setup Confirm Button
             confirmButton.onClick.AddListener(OnConfirmClicked);
-            SetConfirmButtonState(false);// Initially disabled
+            SetConfirmButtonState(false);
 
             calendarView.OnDateSelected += HandleDateSelected;
             timeSlotsView.OnSlotSelected += HandleSlotSelected;
+            
+            // Subscribe to Events
+            BookingManager.Instance.OnBookingConfirmed += HandleBookingConfirmed;
+            BookingManager.Instance.OnBookingFailed += HandleBookingFailed;
 
             ShowCalendar();
-            // Removed generic HandleDateSelected(DateTime.Now) call to ensure clean start state
-            // If you want to start on today's slots immediately, uncomment next line:
             HandleDateSelected(DateTime.Now); 
+        }
+
+        private void OnDestroy()
+        {
+            // Unsubscribe to avoid memory leaks
+            if (BookingManager.Instance != null)
+            {
+                BookingManager.Instance.OnBookingConfirmed -= HandleBookingConfirmed;
+                BookingManager.Instance.OnBookingFailed -= HandleBookingFailed;
+            }
+        }
+
+        private void HandleBookingConfirmed(string bookingId)
+        {
+            Debug.Log($"Booking Confirmed Event Received! ID: {bookingId}");
+            if(loadingIndicator) loadingIndicator.SetActive(false);
+            
+            FetchSlots(); // Refresh UI to show 'Booked by Me'
+            
+            // Optional: Show success popup here
+        }
+
+        private void HandleBookingFailed(string error)
+        {
+            Debug.LogError($"Booking Failed Event Received: {error}");
+            if(loadingIndicator) loadingIndicator.SetActive(false);
+            
+            SetConfirmButtonState(true); // Allow retry
+            
+            // Optional: Show error popup
         }
 
         public void SetConfirmButtonState(bool enabled)
@@ -55,10 +85,8 @@ namespace Booking.UI
         {
             calendarView.gameObject.SetActive(true);
             
-            // Show current month
             calendarView.ShowMonth(DateTime.Now.Year, DateTime.Now.Month);
             
-            // Reset selection state
             SetConfirmButtonState(false);
             _selectedTime = null;
         }
@@ -68,7 +96,6 @@ namespace Booking.UI
             _selectedDate = date;
             timeSlotsView.gameObject.SetActive(true);
             
-            // Reset selection for new date
             SetConfirmButtonState(false);
             _selectedTime = null;
 
@@ -94,7 +121,6 @@ namespace Booking.UI
         private void HandleSlotSelected(string time)
         {
             _selectedTime = time;
-            
             SetConfirmButtonState(true);
         }
 
@@ -107,13 +133,13 @@ namespace Booking.UI
             if(loadingIndicator) loadingIndicator.SetActive(true);
             SetConfirmButtonState(false);
 
-            // Default duration 60 mins for now
             BookingManager.Instance.BookSlot(_selectedDate, _selectedTime, 60,
                 onSuccess: (response) => {
-                    if(loadingIndicator) loadingIndicator.SetActive(false);
                     Debug.Log($"Booking Created! Opening Payment: {response.paymentUrl}");
                     Application.OpenURL(response.paymentUrl);
-                    // Reset or show success UI
+                    
+                    // Start Polling (Async void that fires events)
+                    BookingManager.Instance.StartPolling(response.booking._id);
                 },
                 onError: (error) => {
                     if(loadingIndicator) loadingIndicator.SetActive(false);
@@ -125,7 +151,6 @@ namespace Booking.UI
 
         private void OnBackButtonClicked()
         {
-            // If we are in TimeSlots view, go back to Calendar
         }
     }
 }

@@ -10,38 +10,11 @@ public class APIManager : MonoBehaviour
     private const string BASE_URL = "http://localhost:5002/api"; // Replace with your actual API URL
 
     private static APIManager _instance;
-    public static APIManager Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                // Find existing instance in scene
-                _instance = FindFirstObjectByType<APIManager>();
-                
-                // If not found, create new GameObject with APIManager
-                if (_instance == null)
-                {
-                    GameObject go = new GameObject("APIManager");
-                    _instance = go.AddComponent<APIManager>();
-                    DontDestroyOnLoad(go);
-                }
-            }
-            return _instance;
-        }
-    }
+    public static APIManager Instance => _instance;
 
     private void Awake()
     {
-        if (_instance == null)
-        {
-            _instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else if (_instance != this)
-        {
-            Destroy(gameObject);
-        }
+        _instance = this;
     }
 
     public void PostRequest<T>(string endpoint, object data, Action<T> onSuccess, Action<string> onError)
